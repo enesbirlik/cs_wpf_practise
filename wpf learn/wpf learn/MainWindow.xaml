@@ -6,7 +6,45 @@
         xmlns:local="clr-namespace:wpf_learn"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
-    </Grid>
+    <StackPanel>
+        <Label Margin="16,16,16,0"
+               BorderThickness="1"
+               BorderBrush="Black"
+               >
+            <StackPanel Orientation="Horizontal">
+                <Image Width="40" Source="https://cdn-icons-png.flaticon.com/512/646/646094.png" />
+                <AccessText Margin="4,0,0,0" FontSize="32" FontWeight="Bold" Text="Message"/>
+            </StackPanel>
+        </Label>
+        <TextBox 
+            Margin="16,16,16,0"
+            FontSize="32"
+            AcceptsReturn="True"
+            TextWrapping="Wrap"
+            SpellCheck.IsEnabled="True"
+            Language="en-US"
+            />
+        <Button x:Name="myButton" Width="100" Height="30" Click="Button_Click" FontWeight="Bold">
+           Click me! 
+        </Button>
+        <Label Name="myLabel" HorizontalAlignment="Left" FontWeight="Bold" Margin="5">
+            Hello World Again!
+        </Label>
+        <RadioButton HorizontalAlignment="Center" GroupName="ABC">Answer A</RadioButton>
+        <RadioButton HorizontalAlignment="Center" GroupName="ABC">Answer B</RadioButton>
+        <RadioButton HorizontalAlignment="Center" GroupName="ABC" Checked="RadioButton_Checked_1">Answer C</RadioButton>
+
+        <Label Name="bosLabel" FontWeight="Bold">are u ok?</Label>
+        <RadioButton GroupName="ok" Content="yes" Checked="RadioButton_Checked"/>
+        <RadioButton GroupName="ok" Content="no"/>
+        <RadioButton GroupName="ok" Content="never"/>
+
+
+        <Label Name="blaLabel" FontWeight="Bold">bla bla bla</Label>
+        <CheckBox Name="myCheckBox" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me</CheckBox>
+        <CheckBox Name="myCheckBox2" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me 2</CheckBox>
+        <CheckBox Name="myCheckBox3" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me 3</CheckBox>
+
+
+    </StackPanel>
 </Window>

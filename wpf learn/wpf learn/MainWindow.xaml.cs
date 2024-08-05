@@ -23,6 +23,14 @@ namespace wpf_learn
         public MainWindow()
         {
             InitializeComponent();
+
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {   
+            double myFontSize = myLabel.FontSize;
+            myLabel.FontSize = myFontSize + 2;
+        }
+
     }
 }
