@@ -32,5 +32,34 @@ namespace wpf_learn
             myLabel.FontSize = myFontSize + 2;
         }
 
+        private void cb123_Checked(object sender, RoutedEventArgs e)
+        {
+            lb123.FontWeight = FontWeights.Bold;
+        }
+
+        private void cb123_Unchecked(object sender, RoutedEventArgs e)
+        {
+            lb123.FontWeight = FontWeights.Normal;
+        }
+
+        private void cb456_Checked(object sender, RoutedEventArgs e)
+        {
+            lb456.FontWeight = FontWeights.Bold;
+        }
+
+        private void cb456_Unchecked(object sender, RoutedEventArgs e)
+        {
+            lb456.FontWeight = FontWeights.Normal;
+        }
+
+        private void cb789_Checked(object sender, RoutedEventArgs e)
+        {
+            lb789.FontWeight = FontWeights.Bold;
+        }
+
+        private void cb789_Unchecked(object sender, RoutedEventArgs e)
+        {
+            lb789.FontWeight = FontWeights.Normal;
+        }
     }
 }

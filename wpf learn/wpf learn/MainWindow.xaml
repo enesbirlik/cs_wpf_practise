@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:wpf_learn"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="500" Width="400">
     <StackPanel>
         <Label Margin="16,16,16,0"
                BorderThickness="1"
@@ -27,24 +27,51 @@
         <Button x:Name="myButton" Width="100" Height="30" Click="Button_Click" FontWeight="Bold">
            Click me! 
         </Button>
-        <Label Name="myLabel" HorizontalAlignment="Left" FontWeight="Bold" Margin="5">
+        <Label Name="myLabel" HorizontalAlignment="Center" FontWeight="Bold" Margin="5">
             Hello World Again!
         </Label>
         <RadioButton HorizontalAlignment="Center" GroupName="ABC">Answer A</RadioButton>
         <RadioButton HorizontalAlignment="Center" GroupName="ABC">Answer B</RadioButton>
-        <RadioButton HorizontalAlignment="Center" GroupName="ABC" Checked="RadioButton_Checked_1">Answer C</RadioButton>
+        <RadioButton HorizontalAlignment="Center" GroupName="ABC">Answer C</RadioButton>
 
         <Label Name="bosLabel" FontWeight="Bold">are u ok?</Label>
-        <RadioButton GroupName="ok" Content="yes" Checked="RadioButton_Checked"/>
+        <RadioButton GroupName="ok" Content="yes"/>
         <RadioButton GroupName="ok" Content="no"/>
         <RadioButton GroupName="ok" Content="never"/>
 
 
         <Label Name="blaLabel" FontWeight="Bold">bla bla bla</Label>
-        <CheckBox Name="myCheckBox" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me</CheckBox>
-        <CheckBox Name="myCheckBox2" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me 2</CheckBox>
-        <CheckBox Name="myCheckBox3" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">Check me 3</CheckBox>
+        <CheckBox
+            x:Name="cb123"
+            Checked="cb123_Checked"
+            Unchecked="cb123_Unchecked"
+            VerticalContentAlignment="Center"
+            >
+            
+            <Label Name="lb123">123</Label>
+        </CheckBox>
+        <CheckBox
+            x:Name="cb456"
+            Checked="cb456_Checked"
+            Unchecked="cb456_Unchecked"
+            VerticalContentAlignment="Center"
+            >
+            <Label Name="lb456">456</Label>
+            
+        </CheckBox>
 
+
+        <CheckBox
+            x:Name="cb789"
+            Checked="cb789_Checked"
+            Unchecked="cb789_Unchecked"
+            VerticalAlignment="Center"
+            >
+            <Label Name="lb789">789</Label>
+
+        </CheckBox>
+
+        
 
     </StackPanel>
 </Window>
