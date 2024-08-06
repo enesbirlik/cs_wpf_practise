@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35027.167
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LidarVisualizer", "LidarVisualizer\LidarVisualizer.csproj", "{01FA915C-2563-4832-8CBF-B2278FB2247B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{01FA915C-2563-4832-8CBF-B2278FB2247B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01FA915C-2563-4832-8CBF-B2278FB2247B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01FA915C-2563-4832-8CBF-B2278FB2247B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01FA915C-2563-4832-8CBF-B2278FB2247B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D99273C6-25EA-46B7-9E4E-F573D4781902}
+	EndGlobalSection
+EndGlobal
