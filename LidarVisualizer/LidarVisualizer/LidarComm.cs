@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO.Ports;
+using System.Diagnostics;
 
 namespace LidarVisualizer
 {
@@ -11,13 +12,22 @@ namespace LidarVisualizer
     {
         public static string SelectedComPort { get; set; }
         public static int SelectedBaudRate { get; set; }
+
         private SerialPort serialPort;
-        private const int BUFFER_SIZE = 1000;
+        private const int BUFFER_SIZE = 1013;
         private byte[] buffer = new byte[BUFFER_SIZE];
         private int bufferIndex = 0;
+
+        private LidarDataProcessor dataProcessor;
         public bool IsRunning { get; private set; } = false;
 
         public event EventHandler<byte[]> DataReceived;
+
+
+        public LidarComm()
+        {
+            dataProcessor = new LidarDataProcessor(this);
+        }
 
         public bool Connect()
         {
@@ -31,7 +41,7 @@ namespace LidarVisualizer
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"LiDAR başlatılamadı: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"LiDAR başlatılamadı: {ex.Message}");
                 return false;
             }
         }
@@ -63,11 +73,12 @@ namespace LidarVisualizer
         {
             byte[] data = new byte[bufferIndex];
             Array.Copy(buffer, data, bufferIndex);
-            DataReceived?.Invoke(this, data);
+            Debug.WriteLine($"LidarComm: Veri alındı, boyut: {data.Length} byte");
+            Debug.WriteLine($"Ham Veri {BitConverter.ToString(data)}");
+    
+            DataReceived?.Invoke(this, data);//bu abi ne yapiyo araştır
 
-            // Ham veriyi konsola yazdır
-            Console.WriteLine($"Alınan ham veri: {BitConverter.ToString(data)}");
-
+            dataProcessor.ProcessData(data);
             // Buffer'ı temizle
             bufferIndex = 0;
         }

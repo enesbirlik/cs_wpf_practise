@@ -23,6 +23,7 @@ namespace LidarVisualizer
     {
         private LidarComm lidarComm;
         private bool isConnected = false;
+
         public MainWindow()
         {
             InitializeComponent();
