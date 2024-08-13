@@ -91,7 +91,7 @@ namespace LidarVisualizer
         {
             try
             {
-                double angle = point.Angle * Math.PI / 180;
+                double angle = -point.Angle * Math.PI / 180;
                 double scaledDistance = point.Distance * Math.Min(canvas.ActualWidth, canvas.ActualHeight) / 16000;
 
                 double x = scaledDistance * Math.Cos(angle) + canvas.ActualWidth / 2;
@@ -99,8 +99,8 @@ namespace LidarVisualizer
 
                 Ellipse pointEllipse = new Ellipse
                 {
-                    Width = 2,
-                    Height = 2,
+                    Width = 3,
+                    Height = 3,
                     Fill = new SolidColorBrush(Color.FromRgb(point.Intensity, (byte)(255 - point.Intensity), 0))
                 };
 
