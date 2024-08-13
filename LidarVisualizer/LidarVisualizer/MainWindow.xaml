@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LidarVisualizer"
         mc:Ignorable="d"
-        Title="Lidar Visualizer App" Height="450" Width="800">
+        Title="Lidar Visualizer App" Height="600" Width="900">
     
     <Grid Background="MediumPurple">
         
@@ -15,7 +15,7 @@
         </Grid.ColumnDefinitions>
 
         <Border BorderBrush="Black" BorderThickness="5"></Border>
-        <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,0,100">
+        <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Margin="0,0,0,0">
 
             <TextBlock FontWeight="Bold" FontSize="27"  TextAlignment="Center" Margin="5">
                     2D Lidar
@@ -52,6 +52,8 @@
                     Height="30" 
                     Click="connectionButton_Click"
                      />
+
+            <Image Source="https://morpheustek.com/wp-content/uploads/2023/08/LDROBOT-LD19-png.png"  />
 
         </StackPanel>
 
