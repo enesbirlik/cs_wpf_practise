@@ -29,11 +29,12 @@ namespace LidarVisualizer
             InitializeComponent();
             ListComPorts();
 
-            // ComboBox seçim değişikliklerini dinle
+            // ComboBox seçim değişikliklerini dinleyen kısım
             comPort_ComboBox.SelectionChanged += ComPort_ComboBox_SelectionChanged;
             baudRate_ComboBox.SelectionChanged += BaudRate_ComboBox_SelectionChanged;
 
-            lidarComm = new LidarComm();
+            lidarComm = new LidarComm(scanView);
+
         }
 
         private void ListComPorts()
@@ -46,7 +47,11 @@ namespace LidarVisualizer
             }
             if (comPort_ComboBox.Items.Count > 0)
             {
-                comPort_ComboBox.SelectedIndex = 0;
+                comPort_ComboBox.SelectedIndex = comPort_ComboBox.Items.Count - 1;
+                baudRate_ComboBox.SelectedIndex = baudRate_ComboBox.Items.Count - 1;
+
+                LidarComm.SelectedComPort = comPort_ComboBox.SelectedItem.ToString();
+                LidarComm.SelectedBaudRate = Convert.ToInt32(((ComboBoxItem)baudRate_ComboBox.SelectedItem).Content);
             }
         }
 
@@ -82,6 +87,7 @@ namespace LidarVisualizer
                 comPort_ComboBox.IsEnabled = true;
                 baudRate_ComboBox.IsEnabled = true;
             }
+
         }
 
         private void ComPort_ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

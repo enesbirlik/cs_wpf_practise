@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO.Ports;
 using System.Diagnostics;
+using System.Windows.Controls;
 
 namespace LidarVisualizer
 {
@@ -14,7 +15,8 @@ namespace LidarVisualizer
         public static int SelectedBaudRate { get; set; }
 
         private SerialPort serialPort;
-        private const int BUFFER_SIZE = 1013;
+        private Canvas canvas;
+        private const int BUFFER_SIZE = 47;
         private byte[] buffer = new byte[BUFFER_SIZE];
         private int bufferIndex = 0;
 
@@ -24,9 +26,10 @@ namespace LidarVisualizer
         public event EventHandler<byte[]> DataReceived;
 
 
-        public LidarComm()
+        public LidarComm(Canvas canvas)
         {
-            dataProcessor = new LidarDataProcessor(this);
+            this.canvas = canvas;
+            dataProcessor = new LidarDataProcessor(this, canvas);
         }
 
         public bool Connect()
@@ -65,18 +68,19 @@ namespace LidarVisualizer
             serialPort.Read(buffer, bufferIndex, bytesToRead);
             bufferIndex += bytesToRead;
 
+
             // Yeni veri geldiğinde
             OnDataReceived();
         }
 
-        private void OnDataReceived()
+        public void OnDataReceived()
         {
             byte[] data = new byte[bufferIndex];
             Array.Copy(buffer, data, bufferIndex);
-            Debug.WriteLine($"LidarComm: Veri alındı, boyut: {data.Length} byte");
-            Debug.WriteLine($"Ham Veri {BitConverter.ToString(data)}");
+            //Debug.WriteLine($"LidarComm: Veri alındı, boyut: {data.Length} byte");
+            //Debug.WriteLine($"Ham Veri {BitConverter.ToString(data)}");
     
-            DataReceived?.Invoke(this, data);//bu abi ne yapiyo araştır
+            DataReceived?.Invoke(this, data);//bu abi ne yapiyo araştır listener gibi bişey olabilir
 
             dataProcessor.ProcessData(data);
             // Buffer'ı temizle

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace LidarVisualizer
 {
@@ -10,38 +12,30 @@ namespace LidarVisualizer
             public double Angle { get; set; }
             public ushort Distance { get; set; }
             public byte Intensity { get; set; }
+
+            public DateTime TimeStamp { get; set; }
         }
 
         private LidarComm lidarComm;
+        private ScanDraw scanDraw;
         private byte[] buffer;
         private int bufferIndex;
         private const int packetSize = 47;
 
-        public LidarDataProcessor(LidarComm lidarComm)
+        public LidarDataProcessor(LidarComm lidarComm, Canvas canvas)
         {
             this.lidarComm = lidarComm;
-            this.buffer = new byte[1024]; // Başlangıç buffer boyutu, gerekirse artırılabilir
+            this.scanDraw = new ScanDraw(canvas);
+            this.buffer = new byte[47]; // Başlangıç buffer boyutu, gerekirse artırılabilir
             this.bufferIndex = 0;
-            Init();
+
         }
 
-        private void Init()
-        {
-            lidarComm.DataReceived += OnDataReceived;
-        }
-
-        private void OnDataReceived(object sender, byte[] data)
-        {
-            Debug.WriteLine($"OnDataReceived: Received {data.Length} bytes of data.");
-            ProcessData(data);
-        }
-
-        public void ProcessData(byte[] data)
+        public void ProcessData(byte[] data)//buffer işleme tarafı zor bence
         {
             // Yeni gelen veriyi buffer'a ekle
             if (bufferIndex + data.Length > buffer.Length)
             {
-                // Buffer boyutunu artır
                 Array.Resize(ref buffer, buffer.Length + data.Length);
             }
             Array.Copy(data, 0, buffer, bufferIndex, data.Length);
@@ -50,7 +44,7 @@ namespace LidarVisualizer
             // Tam paketleri işle
             while (bufferIndex >= packetSize)
             {
-                if (buffer[0] == 0x54) // Paket başlangıç byte'ı
+                if (buffer[0] == 0x54) // paket başlangıç byte
                 {
                     byte[] packet = new byte[packetSize];
                     Array.Copy(buffer, packet, packetSize);
@@ -79,7 +73,7 @@ namespace LidarVisualizer
             if (angleDifference < 0) angleDifference += 360;
 
             double angleIncrement = angleDifference / 11;
-            Debug.WriteLine($"Start Angle: {startAngleDegrees:F2}°, End Angle: {endAngleDegrees:F2}°, Angle Increment: {angleIncrement:F2}°");
+            //Debug.WriteLine($"Start Angle: {startAngleDegrees:F2}°, End Angle: {endAngleDegrees:F2}°, Angle Increment: {angleIncrement:F2}°");
 
             for (int i = 0; i < 12; i++)
             {
@@ -92,16 +86,21 @@ namespace LidarVisualizer
                 {
                     Angle = angle,
                     Distance = distance,
-                    Intensity = intensity
+                    Intensity = intensity,
+                    TimeStamp = DateTime.Now
+                        
                 };
-
+                 
+                scanDraw.AddPoint(point);
                 PrintProcessedPoint(point);
+
             }
+
         }
 
         private void PrintProcessedPoint(LidarPoint point)
         {
-            Debug.WriteLine($"Angle: {point.Angle:F2}°, Distance: {point.Distance}mm, Intensity: {point.Intensity}");
+            Debug.WriteLine($"Angle: {point.Angle:F2}°, Distance: {point.Distance}mm, Intensity: {point.Intensity}, Time Stamp:{point.TimeStamp: HH:mm:ss}");
         }
     }
 }
