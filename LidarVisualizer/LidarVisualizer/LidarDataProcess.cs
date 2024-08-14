@@ -20,7 +20,7 @@ namespace LidarVisualizer
         private ScanDraw scanDraw;
         private byte[] buffer;
         private int bufferIndex;
-        private const int packetSize = 47;
+        private const int packetSize = 47;//data sheetten alındı bu bilgi
 
         public LidarDataProcessor(LidarComm lidarComm, Canvas canvas)
         {
@@ -33,7 +33,7 @@ namespace LidarVisualizer
 
         public void ProcessData(byte[] data)//buffer işleme tarafı zor bence
         {
-            // Yeni gelen veriyi buffer'a ekle
+            // Yeni gelen veriyi buffera ekle
             if (bufferIndex + data.Length > buffer.Length)
             {
                 Array.Resize(ref buffer, buffer.Length + data.Length);
