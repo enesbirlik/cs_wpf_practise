@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="RPLidar4Net.Api" Version="0.2.0" />
+    <PackageReference Include="RPLidar4Net.Core" Version="0.3.0" />
+    <PackageReference Include="RPLidar4Net.IO" Version="0.3.0" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
     <PackageReference Include="System.Net.Sockets" Version="4.3.0" />
   </ItemGroup>
