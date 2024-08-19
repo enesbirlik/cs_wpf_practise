@@ -2,111 +2,133 @@
 using System.IO.Ports;
 using System.Threading;
 
-class Program
+public class RPLidar
 {
-    static SerialPort serialPort;
-    static bool isScanning = false;
+    private SerialPort _serial;
+    private const int MAX_MOTOR_PWM = 1023;
+    private const int DEFAULT_MOTOR_PWM = 660;
+    private const byte SET_PWM_BYTE = 0xF0;
+    private const byte SYNC_BYTE = 0xA5;
 
-    static void Main()
+    private int _motorSpeed;
+    private bool _motorRunning;
+
+    public RPLidar(string portName = "COM6", int baudRate = 115200, int timeout = 1)
     {
-        // Seri port ayarlarını yapılandırın
-        serialPort = new SerialPort("COM6", 115200);
-        serialPort.DataBits = 8;
-        serialPort.Parity = Parity.None;
-        serialPort.StopBits = StopBits.One;
+        _serial = new SerialPort(portName, baudRate);
+        _serial.ReadTimeout = timeout * 1000; // Convert to milliseconds
+        _motorSpeed = DEFAULT_MOTOR_PWM;
+        _motorRunning = false;
+    }
 
-        // Seri portu açın
-        serialPort.Open();
-
-        // RPLIDAR'ı başlatın
-        InitRPLIDAR();
-
-        // Taramayı başlatın
-        StartScan();
-
-        // Veri okuma döngüsü
-        while (isScanning)
+    public void Connect()
+    {
+        if (_serial.IsOpen)
         {
-            try
+            Disconnect();
+        }
+        try
+        {
+            _serial.Open();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to connect to the sensor due to: {ex.Message}");
+        }
+    }
+
+    public void Disconnect()
+    {
+        if (_serial.IsOpen)
+        {
+            _serial.Close();
+        }
+    }
+
+    private void SetPWM(ushort pwm)
+    {
+        byte[] payload = BitConverter.GetBytes(pwm);
+        SendPayloadCmd(SET_PWM_BYTE, payload);
+    }
+
+    public int MotorSpeed
+    {
+        get { return _motorSpeed; }
+        set
+        {
+            if (value < 0 || value > MAX_MOTOR_PWM)
             {
-                // Tarama verilerini okuyun
-                ReadScanData();
+                throw new ArgumentOutOfRangeException(nameof(value), $"Motor speed must be between 0 and {MAX_MOTOR_PWM}");
             }
-            catch (Exception ex)
+            _motorSpeed = value;
+            if (_motorRunning)
             {
-                Console.WriteLine($"Hata: {ex.Message}");
-                break;
+                SetPWM((ushort)_motorSpeed);
             }
         }
-
-        // Taramayı durdurun ve bağlantıyı kesin
-        StopScan();
-        DisconnectRPLIDAR();
-
-        Console.WriteLine("Program sonlandı. Çıkmak için bir tuşa basın...");
-        Console.ReadKey();
     }
 
-    static void InitRPLIDAR()
+    public void StartMotor()
     {
-        // Stop komutu gönderin
-        byte[] stopCommand = { 0xA5, 0x25 };
-        serialPort.Write(stopCommand, 0, stopCommand.Length);
-        Thread.Sleep(10);
-
-        // Motoru başlatın
-        byte[] startMotorCommand = { 0xA5, 0xF0 };
-        serialPort.Write(startMotorCommand, 0, startMotorCommand.Length);
-        Thread.Sleep(10);
+        Console.WriteLine("Starting motor");
+        SetPWM((ushort)_motorSpeed);
+        _motorRunning = true;
     }
 
-    static void DisconnectRPLIDAR()
+    public void StopMotor()
     {
-        // Stop komutu gönderin
-        byte[] stopCommand = { 0xA5, 0x25 };
-        serialPort.Write(stopCommand, 0, stopCommand.Length);
-        Thread.Sleep(10);
-
-        // Seri portu kapatın
-        serialPort.Close();
+        Console.WriteLine("Stopping motor");
+        SetPWM(0);
+        Thread.Sleep(1);
+        _motorRunning = false;
     }
 
-    static void StartScan()
+    private void SendPayloadCmd(byte cmd, byte[] payload)
     {
-        isScanning = true;
+        byte size = (byte)payload.Length;
+        byte[] req = new byte[4 + payload.Length];
+        req[0] = SYNC_BYTE;
+        req[1] = cmd;
+        req[2] = size;
+        Array.Copy(payload, 0, req, 3, payload.Length);
 
-        // Tarama başlatma komutu gönderin
-        byte[] startScanCommand = { 0xA5, 0x20 };
-        serialPort.Write(startScanCommand, 0, startScanCommand.Length);
-        Thread.Sleep(10);
+        byte checksum = 0;
+        for (int i = 0; i < req.Length - 1; i++)
+        {
+            checksum ^= req[i];
+        }
+        req[req.Length - 1] = checksum;
+
+        _serial.Write(req, 0, req.Length);
+        Console.WriteLine($"Command sent: {BitConverter.ToString(req)}");
     }
+}
 
-    static void StopScan()
+// Örnek kullanım
+class Program
+{
+    static void Main(string[] args)
     {
-        isScanning = false;
+        RPLidar lidar = new RPLidar(); // Varsayılan olarak COM6'yı kullanacak
 
-        // Tarama durdurma komutu gönderin
-        byte[] stopScanCommand = { 0xA5, 0x25 };
-        serialPort.Write(stopScanCommand, 0, stopScanCommand.Length);
-        Thread.Sleep(10);
-    }
+        try
+        {
+            lidar.Connect();
+            Console.WriteLine("Connected to RPLidar on COM6");
 
-    static void ReadScanData()
-    {
-        // Yanıt başlığını okuyun
-        byte[] header = new byte[7];
-        serialPort.Read(header, 0, header.Length);
+            lidar.StartMotor();
+            Thread.Sleep(50000); // 5 saniye çalıştır
 
-        // Tarama verilerini okuyun
-        byte[] scanData = new byte[5];
-        serialPort.Read(scanData, 0, scanData.Length);
-
-        // Tarama verilerini ayrıştırın
-        float angle = (scanData[1] << 8 | scanData[0]) / 64f;
-        int distance = (scanData[3] << 8 | scanData[2]);
-        byte quality = scanData[4];
-
-        // Tarama verilerini ekrana yazdırın
-        Console.WriteLine($"Açı: {angle}, Mesafe: {distance}, Kalite: {quality}");
+            lidar.StopMotor();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            lidar.Disconnect();
+            Console.WriteLine("Disconnected from RPLidar");
+        }
     }
 }
