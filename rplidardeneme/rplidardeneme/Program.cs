@@ -1,24 +1,29 @@
 ﻿using System;
 using System.IO.Ports;
 using System.Threading;
+using System.Collections.Generic;
 
 public class RPLidar
 {
     private SerialPort _serial;
     private const int MAX_MOTOR_PWM = 1023;
-    private const int DEFAULT_MOTOR_PWM = 660;
+    const int DEFAULT_MOTOR_PWM = 660;
     private const byte SET_PWM_BYTE = 0xF0;
     private const byte SYNC_BYTE = 0xA5;
+    private const byte START_SCAN_BYTE = 0x20;
+    private const byte STOP_BYTE = 0x25;
 
     private int _motorSpeed;
     private bool _motorRunning;
+    private bool _scanning;
 
-    public RPLidar(string portName = "COM6", int baudRate = 115200, int timeout = 1)
+    public RPLidar(string portName = "COM6", int baudRate = 115200, int timeout = 1000)
     {
         _serial = new SerialPort(portName, baudRate);
-        _serial.ReadTimeout = timeout * 1000; // Convert to milliseconds
+        _serial.ReadTimeout = timeout;
         _motorSpeed = DEFAULT_MOTOR_PWM;
         _motorRunning = false;
+        _scanning = false;
     }
 
     public void Connect()
@@ -39,6 +44,8 @@ public class RPLidar
 
     public void Disconnect()
     {
+        StopScan();
+        StopMotor();
         if (_serial.IsOpen)
         {
             _serial.Close();
@@ -83,6 +90,59 @@ public class RPLidar
         _motorRunning = false;
     }
 
+    public void StartScan()
+    {
+        if (!_motorRunning)
+        {
+            StartMotor();
+        }
+        SendCommand(START_SCAN_BYTE);
+        _scanning = true;
+    }
+
+    public void StopScan()
+    {
+        _scanning = false;
+        SendCommand(STOP_BYTE);
+    }
+
+    public byte[] ReadRawData()
+    {
+        if (!_scanning)
+        {
+            throw new InvalidOperationException("Scanning is not started. Call StartScan() first.");
+        }
+
+        List<byte> buffer = new List<byte>();
+        int startFlagCount = 0;
+
+        // Senkronizasyon baytlarını ara
+        while (startFlagCount < 2)
+        {
+            int b = _serial.ReadByte();
+            if (b == SYNC_BYTE)
+                startFlagCount++;
+            else
+                startFlagCount = 0;
+
+            buffer.Add((byte)b);
+        }
+
+        // Veri paketinin geri kalanını oku (5 bayt)
+        for (int i = 0; i < 5; i++)
+        {
+            buffer.Add((byte)_serial.ReadByte());
+        }
+
+        return buffer.ToArray();
+    }
+
+    private void SendCommand(byte cmd)
+    {
+        byte[] req = new byte[] { SYNC_BYTE, cmd };
+        _serial.Write(req, 0, req.Length);
+    }
+
     private void SendPayloadCmd(byte cmd, byte[] payload)
     {
         byte size = (byte)payload.Length;
@@ -104,7 +164,6 @@ public class RPLidar
     }
 }
 
-// Örnek kullanım
 class Program
 {
     static void Main(string[] args)
@@ -116,10 +175,39 @@ class Program
             lidar.Connect();
             Console.WriteLine("Connected to RPLidar on COM6");
 
-            lidar.StartMotor();
-            Thread.Sleep(50000); // 5 saniye çalıştır
+            lidar.StartScan();
+            Console.WriteLine("Scanning started. Press 'q' to stop...");
 
-            lidar.StopMotor();
+            while (true)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(true);
+                    if (key.KeyChar == 'q')
+                        break;
+                }
+
+                try
+                {
+                    byte[] rawData = lidar.ReadRawData();
+                    Console.WriteLine($"Raw Data: {BitConverter.ToString(rawData)}");
+
+                    // Motor hızını güncelle
+                    lidar.MotorSpeed = 660;
+                }
+                catch (TimeoutException)
+                {
+                    Console.WriteLine("Timeout occurred while reading data. Retrying...");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error: {ex.Message}");
+                }
+
+                Thread.Sleep(10); // CPU kullanımını azaltmak için küçük bir gecikme
+            }
+
+            lidar.StopScan();
         }
         catch (Exception ex)
         {
