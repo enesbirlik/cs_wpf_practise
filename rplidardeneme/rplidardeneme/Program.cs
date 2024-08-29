@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO.Ports;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Threading;
 
 public class RPLidar
 {
@@ -10,19 +10,27 @@ public class RPLidar
     private const int DefaultMotorPwm = 660;
     private const byte SetPwmByte = 0xF0;
     private const byte SyncByte = 0xA5;
+    private const byte SyncByte2 = 0x5A;
+    private const byte GetInfoByte = 0x50;
+    private const byte GetHealthByte = 0x52;
     private const byte StartScanByte = 0x20;
     private const byte StopByte = 0x25;
+    private const byte ResetByte = 0x40;
 
     private int motorSpeed;
-    private bool isMotorRunning;
+    private bool motor_running;
     private bool isScanning;
 
     public RPLidar(string portName = "COM6", int baudRate = 115200, int timeout = 1000)
     {
-        this.serialPort = new SerialPort(portName, baudRate);
-        this.serialPort.ReadTimeout = timeout;
+        this.serialPort = new SerialPort(portName, baudRate)
+        {
+            ReadTimeout = timeout,
+            WriteTimeout = timeout,
+            DtrEnable = true
+        };
         this.motorSpeed = DefaultMotorPwm;
-        this.isMotorRunning = false;
+        this.motor_running = false;
         this.isScanning = false;
     }
 
@@ -34,7 +42,20 @@ public class RPLidar
         }
         try
         {
+            this.serialPort = new SerialPort(this.serialPort.PortName, this.serialPort.BaudRate)
+            {
+                Parity = Parity.None,
+                StopBits = StopBits.One,
+                DataBits = 8,
+                Handshake = Handshake.None,
+                ReadTimeout = this.serialPort.ReadTimeout,
+                WriteTimeout = this.serialPort.WriteTimeout,
+                DtrEnable = true
+            };
             this.serialPort.Open();
+            Thread.Sleep(1000); // Give some time for the device to initialize
+            Reset();
+            Thread.Sleep(1000);
         }
         catch (Exception ex)
         {
@@ -54,10 +75,14 @@ public class RPLidar
 
     private void SetPWM(ushort pwm)
     {
+        if (pwm > MaxMotorPwm)
+        {
+            throw new ArgumentException($"PWM value cannot exceed {MaxMotorPwm}");
+        }
         byte[] payload = BitConverter.GetBytes(pwm);
         this.SendPayloadCmd(SetPwmByte, payload);
     }
-    
+
     public int MotorSpeed
     {
         get { return this.motorSpeed; }
@@ -68,7 +93,7 @@ public class RPLidar
                 throw new ArgumentOutOfRangeException(nameof(value), $"Motor speed must be between 0 and {MaxMotorPwm}");
             }
             this.motorSpeed = value;
-            if (this.isMotorRunning)
+            if (this.motor_running)
             {
                 this.SetPWM((ushort)this.motorSpeed);
             }
@@ -78,25 +103,44 @@ public class RPLidar
     public void StartMotor()
     {
         Console.WriteLine("Starting motor");
+        // For A1
+        this.serialPort.DtrEnable = false;
+
+        // For A2
         this.SetPWM((ushort)this.motorSpeed);
-        this.isMotorRunning = true;
+        this.motor_running = true;
+        Thread.Sleep(1000); // Give some time for the motor to start
     }
 
     public void StopMotor()
     {
         Console.WriteLine("Stopping motor");
+        // For A2
         this.SetPWM(0);
-        this.isMotorRunning = false;
+        Thread.Sleep(1);
+        // For A1
+        this.serialPort.DtrEnable = true;
+        this.motor_running = false;
     }
 
     public void StartScan()
     {
-        if (!this.isMotorRunning)
+        if (!this.motor_running)
         {
             this.StartMotor();
         }
+        Console.WriteLine("Starting scan");
         this.SendCommand(StartScanByte);
         this.isScanning = true;
+        Thread.Sleep(100); // Wait for the scan to start
+
+        // Read and verify the descriptor
+        byte[] descriptor = ReadResponse(7);
+        if (descriptor[0] != SyncByte || descriptor[1] != SyncByte2 || descriptor[2] != 0x05 || descriptor[6] != 0x81)
+        {
+            throw new Exception($"Invalid scan descriptor: {BitConverter.ToString(descriptor)}");
+        }
+        Console.WriteLine("Scan started successfully");
     }
 
     public void StopScan()
@@ -105,33 +149,34 @@ public class RPLidar
         this.SendCommand(StopByte);
     }
 
-    public byte[] ReadRawData()
+    public void Reset()
+    {
+        Console.WriteLine("Resetting device");
+        SendCommand(ResetByte);
+        Thread.Sleep(2000);
+        serialPort.DiscardInBuffer();
+    }
+
+    public (float angle, float distance) ReadMeasurement()
     {
         if (!this.isScanning)
         {
             throw new InvalidOperationException("Scanning is not started. Call StartScan() first.");
         }
 
-        List<byte> buffer = new List<byte>();
-        int startFlagCount = 0;
+        byte[] data = ReadResponse(5);
+        bool startBit = (data[0] & 0x1) == 1;
+        bool inversedStartBit = ((data[0] >> 1) & 0x1) == 1;
 
-        while (startFlagCount < 1)//2
+        if (startBit == inversedStartBit)
         {
-            int b = this.serialPort.ReadByte();
-            if (b == SyncByte)
-                startFlagCount++;
-            else
-                startFlagCount = 0;
-
-            buffer.Add((byte)b);
+            throw new Exception("Invalid start bit");
         }
 
-        for (int i = 0; i < 2; i++)//5
-        {
-            buffer.Add((byte)this.serialPort.ReadByte());
-        }
+        float angle = ((data[1] >> 1) | (data[2] << 7)) / 64.0f;
+        float distance = (data[3] | (data[4] << 8)) / 4.0f;
 
-        return buffer.ToArray();
+        return (angle, distance);
     }
 
     private void SendCommand(byte cmd)
@@ -142,53 +187,75 @@ public class RPLidar
 
     private void SendPayloadCmd(byte cmd, byte[] payload)
     {
-        byte size = (byte)payload.Length;
-        byte[] req = new byte[4 + payload.Length];
-        req[0] = SyncByte;
-        req[1] = cmd;
-        req[2] = size;
-        Array.Copy(payload, 0, req, 3, payload.Length);
-
+        List<byte> req = new List<byte> { SyncByte, cmd, (byte)payload.Length };
+        req.AddRange(payload);
         byte checksum = 0;
-        for (int i = 0; i < req.Length - 1; i++)
+        foreach (byte b in req)
         {
-            checksum ^= req[i];
+            checksum ^= b;
         }
-        req[req.Length - 1] = checksum;
-
-        this.serialPort.Write(req, 0, req.Length);
-        //Console.WriteLine($"Command sent: {BitConverter.ToString(req)}");
+        req.Add(checksum);
+        this.serialPort.Write(req.ToArray(), 0, req.Count);
     }
 
-    public (float angle, float distance) ParseScanData(byte[] rawData)
+    private byte[] ReadResponse(int length)
     {
-        if (rawData.Length < 5)
+        byte[] response = new byte[length];
+        int bytesRead = 0;
+        while (bytesRead < length)
         {
-            throw new ArgumentException("Raw data is too short");
+            bytesRead += this.serialPort.Read(response, bytesRead, length - bytesRead);
         }
-
-
-        float angle = ((rawData[1] >> 1) + (rawData[2] << 7)) / 64.0f %360;
-        float distance = (rawData[3] + rawData[4] << 8) / 4.0f;
-
-        Console.WriteLine($"Angle: {angle:F2}°, Distance: {distance:F2}mm");
-
-        return (angle, distance);
+        return response;
     }
-}
 
-class Program
-{
-    static void Main(string[] args)
+    public string GetDeviceInfo()
     {
-        RPLidar lidar = new RPLidar();
+        Console.WriteLine("Getting device info");
+        SendCommand(GetInfoByte);
+        Thread.Sleep(100);
+        byte[] descriptor = ReadResponse(7);
+        if (descriptor[0] != SyncByte || descriptor[1] != SyncByte2)
+        {
+            throw new Exception($"Invalid info descriptor: {BitConverter.ToString(descriptor)}");
+        }
+        byte[] response = ReadResponse(20);
+        return $"Model: {response[0]}, Firmware: {response[2]}.{response[1]}, Hardware: {response[3]}, Serial: {BitConverter.ToString(response, 4, 16).Replace("-", "")}";
+    }
 
+    public string GetHealthStatus()
+    {
+        Console.WriteLine("Getting health status");
+        SendCommand(GetHealthByte);
+        Thread.Sleep(100);
+        byte[] descriptor = ReadResponse(7);
+        if (descriptor[0] != SyncByte || descriptor[1] != SyncByte2)
+        {
+            throw new Exception($"Invalid health descriptor: {BitConverter.ToString(descriptor)}");
+        }
+        byte[] response = ReadResponse(3);
+        string[] statuses = { "Good", "Warning", "Error" };
+        return $"Status: {statuses[response[0]]}, Error Code: {response[1] | (response[2] << 8)}";
+    }
+
+    public void Run()
+    {
         try
         {
-            lidar.Connect();
-            Console.WriteLine("Connected to RPLidar on COM6");
+            Connect();
+            Console.WriteLine("Connected to RPLidar");
 
-            lidar.StartScan();
+            string deviceInfo = GetDeviceInfo();
+            Console.WriteLine($"Device Info: {deviceInfo}");
+
+            string healthStatus = GetHealthStatus();
+            Console.WriteLine($"Health Status: {healthStatus}");
+
+            StartMotor();
+            Thread.Sleep(2000); // Give the motor time to reach full speed
+
+            StartScan();
+
             Console.WriteLine("Scanning started. Press 'q' to stop...");
 
             while (true)
@@ -202,15 +269,10 @@ class Program
 
                 try
                 {
-                    byte[] rawData = lidar.ReadRawData();
-                    //Console.WriteLine($"Raw Data: {BitConverter.ToString(rawData)}");
+                    var (angle, distance) = ReadMeasurement();
+                    Console.WriteLine($"Angle: {angle:F2}°, Distance: {distance:F2}mm");
 
-
-                    var (angle, distance) = lidar.ParseScanData(rawData);
-
-                    //Console.WriteLine($"Angle: {angle:F2}°, Distance: {distance:F2}mm");
-
-                    lidar.MotorSpeed = 660; // DefaultMotorPwm değeri
+                    MotorSpeed = DefaultMotorPwm; // Maintain default motor speed
                 }
                 catch (TimeoutException)
                 {
@@ -221,10 +283,10 @@ class Program
                     Console.WriteLine($"Error: {ex.Message}");
                 }
 
-               // System.Threading.Thread.Sleep(10);
+                Thread.Sleep(10);
             }
 
-            lidar.StopScan();
+            StopScan();
         }
         catch (Exception ex)
         {
@@ -232,8 +294,20 @@ class Program
         }
         finally
         {
-            lidar.Disconnect();
+            Disconnect();
             Console.WriteLine("Disconnected from RPLidar");
         }
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        RPLidar lidar = new RPLidar();
+        lidar.Run();
+
+        Console.WriteLine("Application ended. Press any key to exit.");
+        Console.ReadKey();
     }
 }
